@@ -467,6 +467,8 @@ figure { margin: 0; }
 .cta-box { position: relative; overflow: hidden; border-radius: 22px; padding: clamp(32px, 5vw, 60px); border: 1px solid var(--accent-line); background: radial-gradient(80% 140% at 100% 0%, rgba(242,169,59,.16), transparent 60%), var(--surface); display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
 .cta-box h2 { margin: 0 0 8px; font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -.02em; }
 .cta-box p { margin: 0; color: var(--text-2); }
+.cta-box p a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.cta-box p a:hover { text-decoration: underline; }
 
 /* ---------- Mood grid and viewer ---------- */
 .mood-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
