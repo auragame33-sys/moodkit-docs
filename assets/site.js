@@ -96,7 +96,7 @@
 
   /* Cards light up where the pointer is. */
   d.addEventListener('pointermove', e => {
-    const c = e.target.closest && e.target.closest('.card, .feature');
+    const c = e.target.closest && e.target.closest('.card, .feature, .contact-card');
     if (!c) return;
     const r = c.getBoundingClientRect();
     c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
@@ -205,7 +205,8 @@
   }
 
   /* ---------- Home: the mood showcase ---------- */
-  const show = $('.show');
+  // Not just '.show': the back-to-top button also gets that class once the page is scrolled.
+  const show = $('.hero .show');
   if (show) {
     const moods = json($('#mk-moods')) || [];
     const hero = $('.hero');
@@ -473,8 +474,142 @@
     if (f.open) $$('.faq').forEach(o => { if (o !== f && o.parentElement === f.parentElement) o.open = false; });
   }));
 
+  /* ---------- Support: copy buttons, the fix finder and the report builder ---------- */
+  const copyNow = text => {
+    const ta = d.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = d.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+  };
+  const copyText = text => (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject(new Error('no clipboard')))
+    .catch(() => { if (!copyNow(text)) throw new Error('copy failed'); });
+  const flashText = (b, text, ms = 1600) => {
+    const t = b.querySelector('span') || b;
+    if (!b.dataset.label) b.dataset.label = t.textContent;
+    t.textContent = text; b.classList.add('done');
+    clearTimeout(b._t); b._t = setTimeout(() => { t.textContent = b.dataset.label; b.classList.remove('done'); }, ms);
+  };
+  $$('[data-copy]').forEach(b => b.addEventListener('click', () => copyText(b.dataset.copy).then(() => flashText(b, 'Copied')).catch(() => {})));
+
+  $$('.finder').forEach(f => {
+    const input = $('.finder-search input', f), count = $('.finder-count', f), empty = $('.finder-empty', f);
+    const chips = $$('.fchip', f), fixes = $$('.fix', f);
+    const hay = fixes.map(x => ((x.dataset.keys || '') + ' ' + x.textContent).toLowerCase());
+    let cat = 'all', timer = 0;
+    const terms = () => input.value.toLowerCase().split(/[\s,.?!]+/).filter(Boolean);
+    const hit = (i, ts, c) => (c === 'all' || fixes[i].dataset.cat === c) && ts.every(t => hay[i].includes(t));
+    const apply = (animate = true) => {
+      const ts = terms();
+      let shown = 0;
+      fixes.forEach((x, i) => {
+        const on = hit(i, ts, cat);
+        x.hidden = !on;
+        if (!on) return;
+        if (animate && !reduce) { x.style.setProperty('--k', shown); x.classList.remove('enter'); void x.offsetWidth; x.classList.add('enter'); }
+        shown++;
+      });
+      chips.forEach(c => {
+        const n = fixes.reduce((sum, x, i) => sum + (hit(i, ts, c.dataset.cat) ? 1 : 0), 0);
+        $('.n', c).textContent = n;
+        c.classList.toggle('zero', n === 0);
+      });
+      count.textContent = shown === fixes.length ? `${shown} fixes` : `${shown} of ${fixes.length}`;
+      $('.q', empty).textContent = input.value.trim();
+      empty.hidden = shown > 0;
+    };
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(apply, 120); });
+    input.addEventListener('keydown', e => { if (e.key === 'Escape' && input.value) { e.stopPropagation(); input.value = ''; apply(); } });
+    chips.forEach(c => c.addEventListener('click', () => {
+      cat = c.dataset.cat;
+      chips.forEach(x => x.setAttribute('aria-pressed', String(x === c)));
+      apply();
+    }));
+    $$('.fix-link', f).forEach(b => b.addEventListener('click', () => copyText(location.href.split('#')[0] + '#' + b.dataset.fix).then(() => flashText(b, 'Link copied')).catch(() => {})));
+    if (!reduce) seen(f, () => apply(true));
+    const openFromHash = () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      const x = id && fixes.find(el => el.id === id);
+      if (!x) return;
+      if (x.hidden) { input.value = ''; cat = 'all'; chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.cat === 'all'))); apply(false); }
+      x.open = true;
+      f.classList.add('in');
+      requestAnimationFrame(() => {
+        x.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+        x.classList.remove('enter', 'flash'); void x.offsetWidth; x.classList.add('flash');
+      });
+    };
+    openFromHash();
+    addEventListener('hashchange', openFromHash);
+  });
+
+  const R = $('.report');
+  if (R) {
+    const form = $('.report-form', R), out = $('.ro-text', R), meter = $('.ro-meter i', R), status = $('.ro-status', R);
+    const mail = $('[data-act="email"]', R), discord = $('[data-act="discord"]', R), copyBtn = $('[data-act="copy"]', R);
+    const KEY = 'mk-report';
+    const FACTS = [['ue', 'Unreal Engine'], ['mood', 'Mood'], ['lumen', 'Lumen'], ['baked', 'Baked lighting'], ['sky', 'Sky from another pack'], ['lab', 'Works in the Mood Lab']];
+    const TEXTS = [['steps', 'What I did'], ['expected', 'What I expected'], ['happened', 'What happened instead']];
+    const FIELDS = FACTS.concat(TEXTS).map(([k]) => k);
+    const segs = {};
+    $$('.rseg', R).forEach(s => { segs[s.dataset.name] = s; });
+    const get = k => {
+      if (segs[k]) { const b = $('[aria-checked="true"]', segs[k]); return b ? b.dataset.value : ''; }
+      return ((form.elements[k] && form.elements[k].value) || '').trim();
+    };
+    const put = (k, v) => {
+      if (segs[k]) { $$('button', segs[k]).forEach(b => b.setAttribute('aria-checked', String(!!v && b.dataset.value === v))); return; }
+      if (form.elements[k]) form.elements[k].value = v || '';
+    };
+    const word = v => /^(On|Off|Yes|No|Not tried)$/.test(v) ? v.toLowerCase() : v;
+    let report = { plain: '', filled: 0 };
+    const build = () => {
+      const plain = ['Mood Kit problem report'], rich = ['<span class="t">Mood Kit problem report</span>'];
+      const facts = FACTS.filter(([k]) => get(k));
+      if (facts.length) { plain.push(''); rich.push(''); }
+      facts.forEach(([k, label]) => { const v = word(get(k)); plain.push(`${label}: ${v}`); rich.push(`<span class="k">${label}:</span> ${esc(v)}`); });
+      TEXTS.forEach(([k, label]) => { const v = get(k); if (!v) return; plain.push('', label + ':', v); rich.push('', `<span class="h">${label}:</span>`, esc(v)); });
+      return { plain: plain.join('\n'), rich: rich.join('\n'), filled: FIELDS.filter(k => get(k)).length };
+    };
+    const update = () => {
+      report = build();
+      out.innerHTML = report.filled ? report.rich : '';
+      meter.style.setProperty('--p', (report.filled / FIELDS.length).toFixed(3));
+      if (mail) {
+        const what = get('happened').split('\n')[0].slice(0, 70);
+        mail.href = `mailto:${R.dataset.email}?subject=${encodeURIComponent('Mood Kit problem' + (what ? ': ' + what : ''))}&body=${encodeURIComponent(report.plain)}`;
+      }
+      const data = {};
+      FIELDS.forEach(k => { data[k] = get(k); });
+      store.set(KEY, report.filled ? JSON.stringify(data) : '');
+    };
+    const say = text => { status.textContent = text; clearTimeout(say.t); say.t = setTimeout(() => { status.textContent = ''; }, 5000); };
+    copyBtn.addEventListener('click', () => copyText(report.plain)
+      .then(() => { flashText(copyBtn, 'Copied'); say('Report copied. Paste it where you ask for help, and add your screenshot.'); })
+      .catch(() => say('Copying did not work here. Select the report and copy it yourself.')));
+    // Copy at once, before Discord opens in a new tab and this page loses focus.
+    discord?.addEventListener('click', () => {
+      if (copyNow(report.plain)) say('Report copied. Paste it in Discord, then add your screenshot.');
+      else copyText(report.plain).then(() => say('Report copied. Paste it in Discord, then add your screenshot.')).catch(() => say('Copy the report, then paste it in Discord.'));
+    });
+    mail?.addEventListener('click', () => say('Your email app opens with the report written in. Add your screenshot before you send it.'));
+    $('.ro-clear', R).addEventListener('click', () => { FIELDS.forEach(k => put(k, '')); update(); say('Cleared.'); });
+    Object.values(segs).forEach(s => $$('button', s).forEach(b => b.addEventListener('click', () => {
+      const on = b.getAttribute('aria-checked') === 'true';
+      $$('button', s).forEach(x => x.setAttribute('aria-checked', 'false'));
+      if (!on) b.setAttribute('aria-checked', 'true');
+      update();
+    })));
+    form.addEventListener('input', update);
+    form.addEventListener('submit', e => e.preventDefault());
+    try { const saved = JSON.parse(store.get(KEY) || 'null'); if (saved) FIELDS.forEach(k => put(k, saved[k])); } catch (e) { /* an old or broken draft */ }
+    update();
+  }
+
   /* ---------- Copy code ---------- */
-  $$('.prose pre').forEach(pre => {
+  $$('.prose pre:not(.ro-text)').forEach(pre => {
     const b = d.createElement('button');
     b.className = 'icon-btn copy-btn'; b.type = 'button'; b.setAttribute('aria-label', 'Copy'); b.innerHTML = icon('copy');
     b.addEventListener('click', () => navigator.clipboard?.writeText(pre.innerText).then(() => { b.innerHTML = icon('check'); setTimeout(() => { b.innerHTML = icon('copy'); }, 1400); }).catch(() => {}));
