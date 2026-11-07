@@ -1,2 +1,3 @@
 User-agent: *
 Allow: /
+Sitemap: https://auragame33-sys.github.io/moodkit-docs/sitemap.xml
