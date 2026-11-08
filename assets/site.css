@@ -118,8 +118,8 @@ input { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; margin-right: 6px; flex: none; }
-.brand-mark { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: radial-gradient(120% 120% at 30% 20%, #ffd690, var(--accent) 45%, #9a5a05); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 6px 20px -6px var(--accent); }
-.brand-mark svg { width: 18px; height: 18px; stroke: #2a1a03; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.brand-mark { width: 32px; height: 32px; border-radius: 7.5px; display: block; flex: none; box-shadow: 0 6px 18px -7px rgba(242, 169, 59, .75); transition: transform .25s var(--ease), box-shadow .25s; }
+.brand:hover .brand-mark { transform: rotate(-6deg) scale(1.06); box-shadow: 0 8px 22px -6px rgba(242, 169, 59, .9); }
 .brand-name { font: 600 21px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
 .brand-tag { font: 500 11px/1 var(--mono); color: var(--muted); border: 1px solid var(--line-2); padding: 4px 7px; border-radius: 6px; letter-spacing: .04em; }
 .header-links { display: flex; gap: 2px; margin-left: 8px; }
